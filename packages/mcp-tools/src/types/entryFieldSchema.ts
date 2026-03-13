@@ -56,7 +56,7 @@ const topLevelBlockNodeSchema: z.ZodType<unknown> = z.lazy(() =>
   }),
 );
 
-const richTextDocumentSchema = z
+export const richTextDocumentSchema = z
   .object({
     nodeType: z.literal(BLOCKS.DOCUMENT),
     data: z.record(z.any()),
@@ -85,6 +85,23 @@ const locationSchema = z.object({
   lon: z.number(),
 });
 
+const jsonPrimitive = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+// JSON schema for freeform JSON fields (supports any valid JSON structure)
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z
+    .union([jsonPrimitive, z.array(jsonValueSchema), z.record(jsonValueSchema)])
+    .describe('Freeform JSON value (not for Rich Text)'),
+);
+
 const fieldValueSchema = z.union([
   z.string().describe('Symbol, Text, or Date field'),
   z.number().describe('Integer or Number field'),
@@ -96,7 +113,12 @@ const fieldValueSchema = z.union([
   z.array(z.string()).describe('Array field of Symbols'),
   z.array(linkSchema).describe('Array field of Links'),
   z.array(resourceLinkSchema).describe('Array field of ResourceLinks'),
-  z.record(z.any()).describe('Object field (freeform JSON, not for RichText)'),
+  jsonValueSchema,
+  z
+    .unknown()
+    .describe(
+      'Fallback type that ideally should never be used - indicates a schema gap',
+    ),
 ]);
 
 // --- Localized field wrapper ---
